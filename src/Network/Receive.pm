@@ -6177,6 +6177,22 @@ sub refine_result {
 	}
 }
 
+# 0223
+sub upgrade_message {
+	my ($self, $args) = @_;
+	my $item = itemNameSimple($args->{itemID});
+	if($args->{type} == 0) { # Success
+		message TF("Weapon upgraded: %s\n", $item), "info";
+	} elsif($args->{type} == 1) { # Fail
+		message TF("Weapon not upgraded: %s\n", $item), "info";
+		# message TF("Weapon upgraded: %s\n", $item), "info";
+	} elsif($args->{type} == 2) { # Fail Lvl
+		message TF("Cannot upgrade %s until you level up the upgrade weapon skill.\n", $item), "info";
+	} elsif($args->{type} == 3) { # Fail Item
+		message TF("You lack item %s to upgrade the weapon.\n", $item), "info";
+	}
+}
+
 sub open_buying_store_fail { #0x812
 	my ($self, $args) = @_;
 	my $result = $args->{result};
@@ -6274,6 +6290,203 @@ sub skill_msg {
 		message "[".$skill->getName."] $msgTable[$args->{msgid}]\n", "info";
 	} else {
 		warning TF("Unknown skill_msg msgid:%d skill:%d. Need to update the file msgstringtable.txt (from data.grf)\n", $args->{msgid}, $args->{id});
+	}
+}
+
+#TODO !
+sub overweight_percent {
+	my ($self, $args) = @_;
+}
+
+sub partylv_info {
+	my ($self, $args) = @_;
+	my $ID = $args->{ID};
+	if ($char->{party}{users}{$ID}) {
+		$char->{party}{users}{$ID}{job} = $args->{job};
+		$char->{party}{users}{$ID}{lv} = $args->{lv};
+	}
+}
+
+sub achievement_reward_ack {
+	my ($self, $args) = @_;
+	message TF("Received reward for achievement %s.\n", $args->{ach_id}), "info";
+}
+
+sub achievement_update {
+	my ($self, $args) = @_;
+	
+	my $achieve;
+	@{$achieve}{qw(ach_id completed objective1 objective2 objective3 objective4 objective5 objective6 objective7 objective8 objective9 objective10 completed_at reward)} = @{$args}{qw(ach_id completed objective1 objective2 objective3 objective4 objective5 objective6 objective7 objective8 objective9 objective10 completed_at reward)};
+	
+	$achievementList->{$achieve->{ach_id}} = $achieve;
+	message TF("Achievement %s added or updated.\n", $achieve->{ach_id}), "info";
+}
+
+sub achievement_list {
+	my ($self, $args) = @_;
+	
+	$achievementList = {};
+	
+	my $msg = $args->{RAW_MSG};
+	my $msg_size = $args->{RAW_MSG_SIZE};
+	my $headerlen = 22;
+	my $achieve_pack = 'V C V10 V C';
+	my $achieve_len = length pack $achieve_pack;
+	
+	for (my $i = $headerlen; $i < $args->{RAW_MSG_SIZE}; $i+=$achieve_len) {
+		my $achieve;
+
+		($achieve->{ach_id},
+		$achieve->{completed},
+		$achieve->{objective1},
+		$achieve->{objective2},
+		$achieve->{objective3},
+		$achieve->{objective4},
+		$achieve->{objective5},
+		$achieve->{objective6},
+		$achieve->{objective7},
+		$achieve->{objective8},
+		$achieve->{objective9},
+		$achieve->{objective10},
+		$achieve->{completed_at},
+		$achieve->{reward})	= unpack($achieve_pack, substr($msg, $i, $achieve_len));
+		
+		$achievementList->{$achieve->{ach_id}} = $achieve;
+		message TF("Achievement %s added.\n", $achieve->{ach_id}), "info";
+	}
+}
+
+sub quest_all_list2 {
+	my ($self, $args) = @_;
+	$questList = {};
+	my $msg;
+	my ($questID, $active, $time_start, $time, $mission_amount);
+	my $i = 0;
+	my ($mobID, $count, $amount, $mobName);
+	while ($i < $args->{RAW_MSG_SIZE} - 8) {
+		$msg = substr($args->{message}, $i, 15);
+		($questID, $active, $time_start, $time, $mission_amount) = unpack('V C V2 v', $msg);
+		$questList->{$questID}->{active} = $active;
+		debug "$questID $active\n", "info";
+
+		my $quest = \%{$questList->{$questID}};
+		$quest->{time_start} = $time_start;
+		$quest->{time} = $time;
+		$quest->{mission_amount} = $mission_amount;
+		debug "$questID $time_start $time $mission_amount\n", "info";
+		$i += 15;
+
+		if ($mission_amount > 0) {
+			for (my $j = 0 ; $j < $mission_amount ; $j++) {
+				$msg = substr($args->{message}, $i, 32);
+				($mobID, $count, $amount, $mobName) = unpack('V v2 Z24', $msg);
+				my $mission = \%{$quest->{missions}->{$mobID}};
+				$mission->{mobID} = $mobID;
+				$mission->{count} = $count;
+				$mission->{amount} = $amount;
+				$mission->{mobName_org} = $mobName;
+				$mission->{mobName} = bytesToString($mobName);
+				debug "- $mobID $count / $amount $mobName\n", "info";
+				$i += 32;
+			}
+		}
+	}
+}
+
+# 018B
+sub quit_response {
+	my ($self, $args) = @_;
+	if ($args->{fail}) { # NOTDISCONNECTABLE_STATE =  0x1
+		error T("Please wait 10 seconds before trying to log out.\n"); # MSI_CANT_EXIT_NOW =  0x1f6
+	} else { # DISCONNECTABLE_STATE =  0x0
+		message T("Logged out from the server succesfully.\n"), "success";
+	}
+}
+
+sub private_airship_type {
+	my ($self, $args) = @_;
+	if ($args->{fail} == 0) {
+		message TF("Use Private Airship success.\n"),"info";
+	} elsif ($args->{fail} == 1) {
+		message TF("Please try PivateAirship again.\n"),"info";
+	} elsif ($args->{fail} == 2) {
+		message TF("You do not have enough Item to use PivateAirship.\n"), "info";
+	} elsif ($args->{fail} == 3) {
+		message TF("Destination map is invalid.\n"),"info";
+	} elsif ($args->{fail} == 4) {
+		message TF("Source map is invalid.\n"),"info";
+	} elsif ($args->{fail} == 5) {
+		message TF("Item unavailable for use PivateAirship.\n"),"info";
+	}
+}
+
+# 00CB
+sub sell_result {
+	my ($self, $args) = @_;
+	if ($args->{fail}) {
+		error T("Sell failed.\n");
+	} else {
+		message T("Sell completed.\n"), "success";
+	}
+	if (AI::is("sellAuto")) {
+		AI::args->{recv_sell_packet} = 1;
+	}
+}
+
+sub GM_req_acc_name {
+	my ($self, $args) = @_;
+	message TF("The accountName for ID %s is %s.\n", $args->{targetID}, $args->{accountName}), "info";
+}
+
+# 0293
+sub boss_map_info {
+	my ($self, $args) = @_;
+	my $bossName = bytesToString($args->{name});
+
+	if ($args->{flag} == 0) {
+		message T("You cannot find any trace of a Boss Monster in this area.\n"), "info";
+	} elsif ($args->{flag} == 1) {
+		message TF("MVP Boss %s is now on location: (%d, %d)\n", $bossName, $args->{x}, $args->{y}), "info";
+	} elsif ($args->{flag} == 2) {
+		message TF("MVP Boss %s has been detected on this map!\n", $bossName), "info";
+	} elsif ($args->{flag} == 3) {
+		message TF("MVP Boss %s is dead, but will spawn again in %d hour(s) and %d minutes(s).\n", $bossName, $args->{hours}, $args->{minutes}), "info";
+	} else {
+		debug $self->{packet_list}{$args->{switch}}->[0] . " " . join(', ', @{$args}{@{$self->{packet_list}{$args->{switch}}->[2]}}) . "\n";
+		warning TF("Unknown results in %s (flag: %s)\n", $self->{packet_list}{$args->{switch}}->[0], $args->{flag});
+	}
+}
+
+sub adopt_reply {
+	my ($self, $args) = @_;
+	if($args->{type} == 0) {
+		message T("You cannot adopt more than 1 child.\n"), "info";
+	} elsif($args->{type} == 1) {
+		message T("You must be at least character level 70 in order to adopt someone.\n"), "info";
+	} elsif($args->{type} == 2) {
+		message T("You cannot adopt a married person.\n"), "info";
+	}
+}
+
+sub guild_master_member {
+	my ($self, $args) = @_;
+	if ($args->{type} == 0xd7) {
+	} elsif ($args->{type} == 0x57) {
+		message T("You are not a guildmaster.\n"), "info";
+		return;
+	} else {
+		warning TF("Unknown results in %s (type: %s)\n", $self->{packet_list}{$args->{switch}}->[0], $args->{type});
+		return;
+	}
+	message T("You are a guildmaster.\n"), "info";
+}
+
+sub GM_silence {
+	my ($self, $args) = @_;
+	if ($args->{flag}) {
+		message TF("You have been: muted by %s.\n", bytesToString($args->{name})), "info";
+	} else {
+		message TF("You have been: unmuted by %s.\n", bytesToString($args->{name})), "info";
 	}
 }
 

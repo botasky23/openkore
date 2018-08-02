@@ -355,7 +355,7 @@ sub new {
 		'021F' => ['pk_info', 'V2 Z24 Z24 a4 a4', [qw(win_point lose_point killer_name killed_name dwLowDateTime dwHighDateTime)]], # 66
 		'0220' => ['crazy_killer', 'a4 V', [qw(ID flag)]], # 10
 		'0221' => ['upgrade_list', 'v a*', [qw(len item_list)]],
-		'0223' => ['upgrade_message', 'a4 v', [qw(type itemID)]], # 8
+		'0223' => ['upgrade_message', 'V v', [qw(type itemID)]], # 8
 		'0224' => ['taekwon_rank', 'V2', [qw(type rank)]], # 10
 		'0226' => ['top10_taekwon_rank'], # 282
 		'0227' => ['gameguard_request'], # 18 ??
@@ -547,6 +547,7 @@ sub new {
 		'0A0F' => ['cart_items_nonstackable', 'v a*', [qw(len itemInfo)]],
 		'0A10' => ['storage_items_nonstackable', 'v Z24 a*', [qw(len title itemInfo)]],
 		'0A12' => ['rodex_open_write', 'Z24 C', [qw(name result)]],   # 27
+		'0A14' => ['rodex_check_player', 'V v2', [qw(char_id class base_level)]],
 		'0A18' => ['map_loaded', 'V a3 x2 v', [qw(syncMapSync coords unknown)]],
 		'0A23' => ['achievement_list', 'v V V v V V', [qw(len ach_count total_points rank current_rank_points next_rank_points)]], # -1
 		'0A24' => ['achievement_update', 'V v VVV C V10 V C', [qw(total_points rank current_rank_points next_rank_points ach_id completed objective1 objective2 objective3 objective4 objective5 objective6 objective7 objective8 objective9 objective10 completed_at reward)]], # 66
@@ -559,20 +560,25 @@ sub new {
 		'0A3B' => ['hat_effect', 'v a4 C a*', [qw(len ID flag effect)]], # -1
 		'0A43' => ['party_join', 'a4 V v4 C Z24 Z24 Z16 C2', [qw(ID role jobID lv x y type name user map item_pickup item_share)]],
 		'0A44' => ['party_users_info', 'v Z24 a*', [qw(len party_name playerInfo)]],
+		'0A4A' => ['private_airship_type', 'V', [qw(type)]],
 		'0A4B' => ['map_change', 'Z16 v2', [qw(map x y)]], # ZC_AIRSHIP_MAPMOVE
 		'0A4C' => ['map_changed', 'Z16 v2 a4 v', [qw(map x y IP port)]], # ZC_AIRSHIP_SERVERMOVE
 		'0A51' => ['rodex_check_player', 'V v2 Z24', [qw(char_id class base_level name)]],   # 34
 		'0A7D' => ['rodex_mail_list', 'v C3', [qw(len type amount isEnd)]], # -1
 		'0AA0' => ['refineui_opened', '' ,[qw()]],
 		'0AA2' => ['refineui_info', 'v v C a*' ,[qw(len index bless materials)]],
+		'0AB2' => ['party_dead', 'a4 C', [qw(ID isDead)]],
+		'0ABE' => ['warp_portal_list', 'v Z16 Z16 Z16 Z16', [qw(type memo1 memo2 memo3 memo4)]], #TODO : MapsCount || size is -1
+		'0ABD' => ['partylv_info', 'a4 v2', [qw(ID job lv)]],
 		'0AC4' => ['account_server_info', 'v a4 a4 a4 a4 a26 C x17 a*', [qw(len sessionID accountID sessionID2 lastLoginIP lastLoginTime accountSex serverInfo)]], #TODO
 		'0AC5' => ['received_character_ID_and_Map', 'a4 Z16 a4 v a128', [qw(charID mapName mapIP mapPort mapUrl)]],
 		'0AC7' => ['map_changed', 'Z16 v2 a4 v a128', [qw(map x y IP port url)]], # 156
 		'0AC9' => ['account_server_info', 'v a4 a4 a4 a4 a26 C a6 a*', [qw(len sessionID accountID sessionID2 lastLoginIP lastLoginTime accountSex unknown serverInfo)]],
+		'0ACA' => ['errors', 'C', [qw(type)]], #if PACKETVER >= 20170322
 		'0ACB' => ['stat_info', 'v Z8', [qw(type val)]],
 		'0ACC' => ['exp', 'a4 Z8 v2', [qw(ID val type flag)]],
 		'0ADC' => ['flag', 'V', [qw(unknown)]],
-		'0ADE' => ['flag', 'V', [qw(unknown)]],
+ 		'0ADE' => ['overweight_percent', 'v V', [qw(len percent)]],#TODO
 		'0AE4' => ['party_join', 'a4 a4 V v4 C Z24 Z24 Z16 C2', [qw(ID charID role jobID lv x y type name user map item_pickup item_share)]],
 		'0AE5' => ['party_users_info', 'v Z24 a*', [qw(len party_name playerInfo)]],
 		};
@@ -3611,16 +3617,6 @@ sub manner_message {
 	}
 }
 
-sub GM_silence {
-	my ($self, $args) = @_;
-	if ($args->{flag}) {
-		message TF("You have been: muted by %s.\n", bytesToString($args->{name})), "info";
-	}
-	else {
-		message TF("You have been: unmuted by %s.\n", bytesToString($args->{name})), "info";
-	}
-}
-
 # TODO test if we must use ID to know if the packets are meant for us.
 # ID is monsterID
 sub taekwon_packets {
@@ -3641,19 +3637,6 @@ sub taekwon_packets {
 	} else {
 		warning TF("Unknown results in %s (flag: %s)\n", $self->{packet_list}{$args->{switch}}->[0], $args->{flag});
 	}
-}
-
-sub guild_master_member {
-	my ($self, $args) = @_;
-	if ($args->{type} == 0xd7) {
-	} elsif ($args->{type} == 0x57) {
-		message T("You are not a guildmaster.\n"), "info";
-		return;
-	} else {
-		warning TF("Unknown results in %s (type: %s)\n", $self->{packet_list}{$args->{switch}}->[0], $args->{type});
-		return;
-	}
-	message T("You are a guildmaster.\n"), "info";
 }
 
 # 0152
@@ -3726,22 +3709,6 @@ sub blade_stop {
 sub divorced {
 	my ($self, $args) = @_;
 	message TF("%s and %s have divorced from each other.\n", $char->{name}, $args->{name}), "info"; # is it $char->{name} or is this packet also used for other players?
-}
-
-# 0223
-# TODO: can we use itemName? and why is type 0 equal to type 1?
-# doesn't seem to be used by eA
-sub upgrade_message {
-	my ($self, $args) = @_;
-	if($args->{type} == 0) {
-		message TF("Weapon upgraded: %s\n", itemName(Actor::Item::get($args->{nameID}))), "info";
-	} elsif($args->{type} == 1) {
-		message TF("Weapon upgraded: %s\n", itemName(Actor::Item::get($args->{nameID}))), "info";
-	} elsif($args->{type} == 2) {
-		message TF("Cannot upgrade %s until you level up the upgrade weapon skill.\n", itemName(Actor::Item::get($args->{nameID}))), "info";
-	} elsif($args->{type} == 3) {
-		message TF("You lack item %s to upgrade the weapon.\n", itemNameSimple($args->{nameID})), "info";
-	}
 }
 
 # 02CB
@@ -3851,71 +3818,13 @@ sub cash_buy_fail {
 	debug "cash_buy_fail $args->{cash_points} $args->{kafra_points} $args->{fail}\n";
 }
 
-sub adopt_reply {
-	my ($self, $args) = @_;
-	if($args->{type} == 0) {
-		message T("You cannot adopt more than 1 child.\n"), "info";
-	} elsif($args->{type} == 1) {
-		message T("You must be at least character level 70 in order to adopt someone.\n"), "info";
-	} elsif($args->{type} == 2) {
-		message T("You cannot adopt a married person.\n"), "info";
-	}
-}
-
 # TODO do something with sourceID, targetID? -> tech: maybe your spouses adopt_request will also display this message for you.
 sub adopt_request {
 	my ($self, $args) = @_;
 	message TF("%s wishes to adopt you. Do you accept?\n", $args->{name}), "info";
 }
 
-# 0293
-sub boss_map_info {
-	my ($self, $args) = @_;
-	my $bossName = bytesToString($args->{name});
-
-	if ($args->{flag} == 0) {
-		message T("You cannot find any trace of a Boss Monster in this area.\n"), "info";
-	} elsif ($args->{flag} == 1) {
-		message TF("MVP Boss %s is now on location: (%d, %d)\n", $bossName, $args->{x}, $args->{y}), "info";
-	} elsif ($args->{flag} == 2) {
-		message TF("MVP Boss %s has been detected on this map!\n", $bossName), "info";
-	} elsif ($args->{flag} == 3) {
-		message TF("MVP Boss %s is dead, but will spawn again in %d hour(s) and %d minutes(s).\n", $bossName, $args->{hours}, $args->{minutes}), "info";
-	} else {
-		debug $self->{packet_list}{$args->{switch}}->[0] . " " . join(', ', @{$args}{@{$self->{packet_list}{$args->{switch}}->[2]}}) . "\n";
-		warning TF("Unknown results in %s (flag: %s)\n", $self->{packet_list}{$args->{switch}}->[0], $args->{flag});
-	}
-}
-
-sub GM_req_acc_name {
-	my ($self, $args) = @_;
-	message TF("The accountName for ID %s is %s.\n", $args->{targetID}, $args->{accountName}), "info";
-}
-
 #newly added in Sakexe_0.pm
-
-# 00CB
-sub sell_result {
-	my ($self, $args) = @_;
-	if ($args->{fail}) {
-		error T("Sell failed.\n");
-	} else {
-		message T("Sell completed.\n"), "success";
-	}
-	if (AI::is("sellAuto")) {
-		AI::args->{recv_sell_packet} = 1;
-	}
-}
-
-# 018B
-sub quit_response {
-	my ($self, $args) = @_;
-	if ($args->{fail}) { # NOTDISCONNECTABLE_STATE =  0x1
-		error T("Please wait 10 seconds before trying to log out.\n"); # MSI_CANT_EXIT_NOW =  0x1f6
-	} else { # DISCONNECTABLE_STATE =  0x0
-		message T("Logged out from the server succesfully.\n"), "success";
-	}
-}
 
 # 00B3
 # TODO: add real client messages and logic?
@@ -3941,92 +3850,13 @@ sub character_block_info {
 	#TODO
 }
 
-sub quest_all_list2 {
+sub party_dead {
 	my ($self, $args) = @_;
-	$questList = {};
-	my $msg;
-	my ($questID, $active, $time_start, $time, $mission_amount);
-	my $i = 0;
-	my ($mobID, $count, $amount, $mobName);
-	while ($i < $args->{RAW_MSG_SIZE} - 8) {
-		$msg = substr($args->{message}, $i, 15);
-		($questID, $active, $time_start, $time, $mission_amount) = unpack('V C V2 v', $msg);
-		$questList->{$questID}->{active} = $active;
-		debug "$questID $active\n", "info";
 
-		my $quest = \%{$questList->{$questID}};
-		$quest->{time_start} = $time_start;
-		$quest->{time} = $time;
-		$quest->{mission_amount} = $mission_amount;
-		debug "$questID $time_start $time $mission_amount\n", "info";
-		$i += 15;
-
-		if ($mission_amount > 0) {
-			for (my $j = 0 ; $j < $mission_amount ; $j++) {
-				$msg = substr($args->{message}, $i, 32);
-				($mobID, $count, $amount, $mobName) = unpack('V v2 Z24', $msg);
-				my $mission = \%{$quest->{missions}->{$mobID}};
-				$mission->{mobID} = $mobID;
-				$mission->{count} = $count;
-				$mission->{amount} = $amount;
-				$mission->{mobName_org} = $mobName;
-				$mission->{mobName} = bytesToString($mobName);
-				debug "- $mobID $count / $amount $mobName\n", "info";
-				$i += 32;
-			}
-		}
-	}
+	my $string = ($char->{party}{users}{$args->{ID}} && %{$char->{party}{users}{$args->{ID}}}) ? $char->{party}{users}{$args->{ID}}->name() : $args->{ID};
+	if ($args->{isDead} == 1) {
+		message TF("Party member %s is dead.\n", $string), "info";
+	}	
 }
-
-sub achievement_list {
-	my ($self, $args) = @_;
-	
-	$achievementList = {};
-	
-	my $msg = $args->{RAW_MSG};
-	my $msg_size = $args->{RAW_MSG_SIZE};
-	my $headerlen = 22;
-	my $achieve_pack = 'V C V10 V C';
-	my $achieve_len = length pack $achieve_pack;
-	
-	for (my $i = $headerlen; $i < $args->{RAW_MSG_SIZE}; $i+=$achieve_len) {
-		my $achieve;
-
-		($achieve->{ach_id},
-		$achieve->{completed},
-		$achieve->{objective1},
-		$achieve->{objective2},
-		$achieve->{objective3},
-		$achieve->{objective4},
-		$achieve->{objective5},
-		$achieve->{objective6},
-		$achieve->{objective7},
-		$achieve->{objective8},
-		$achieve->{objective9},
-		$achieve->{objective10},
-		$achieve->{completed_at},
-		$achieve->{reward})	= unpack($achieve_pack, substr($msg, $i, $achieve_len));
-		
-		$achievementList->{$achieve->{ach_id}} = $achieve;
-		message TF("Achievement %s added.\n", $achieve->{ach_id}), "info";
-	}
-}
-
-sub achievement_update {
-	my ($self, $args) = @_;
-	
-	my $achieve;
-	@{$achieve}{qw(ach_id completed objective1 objective2 objective3 objective4 objective5 objective6 objective7 objective8 objective9 objective10 completed_at reward)} = @{$args}{qw(ach_id completed objective1 objective2 objective3 objective4 objective5 objective6 objective7 objective8 objective9 objective10 completed_at reward)};
-	
-	$achievementList->{$achieve->{ach_id}} = $achieve;
-	message TF("Achievement %s added or updated.\n", $achieve->{ach_id}), "info";
-}
-
-sub achievement_reward_ack {
-	my ($self, $args) = @_;
-	message TF("Received reward for achievement %s.\n", $args->{ach_id}), "info";
-}
-
-
 
 1;

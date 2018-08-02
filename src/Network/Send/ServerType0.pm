@@ -188,12 +188,14 @@ sub new {
 		'0A13' => ['rodex_checkname', 'Z24', [qw(name)]],   # 26 -- RodexCheckName
 		'0A2E' => ['send_change_title', 'V', [qw(ID)]],
 		'0A39' => ['char_create', 'a24 C v4 C', [qw(name slot hair_color hair_style job_id unknown sex)]],
+		'0A49' => ['private_airship_request', 'Z16 v' ,[qw(Map_name ItemID)]],
 		'0A6E' => ['rodex_send_mail', 'v Z24 Z24 V2 v v V a* a*', [qw(len receiver sender zeny1 zeny2 title_len body_len char_id title body)]],   # -1 -- RodexSendMail
 		'0AA1' => ['refineui_select', 'a2' ,[qw(index)]],
 		'0AA3' => ['refineui_refine', 'a2 v C' ,[qw(index catalyst bless)]],
 		'0AA4' => ['refineui_close', '' ,[qw()]],
 		'0AAC' => ['master_login', 'V Z30 a32 C', [qw(version username password_hex master_version)]],
 		'0ACF' => ['master_login', 'a4 Z25 a32 a5', [qw(game_code username password_rijndael flag)]],
+		'0AE8' => ['change_dress'],
 	);
 	$self->{packet_list}{$_} = $packets{$_} for keys %packets;
 	
@@ -1250,6 +1252,16 @@ sub sendAchievementGetReward {
 	my ($self, $ach_id) = @_;
 	my $msg = pack("C*", 0x25, 0x0A) . pack("V", $ach_id);
 	$self->sendToServer($msg);
+}
+
+sub SendPrivateairShiprequest {
+	my ($self, $args,$mapname,$ItemID) = @_;
+	
+	$self->sendToServer($self->reconstruct({
+		switch => 'private_airship_request',
+		Map_name => stringToBytes($mapname),
+		ItemID => $ItemID,
+	}));
 }
 
 1;
