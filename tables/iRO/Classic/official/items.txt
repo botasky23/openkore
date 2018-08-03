@@ -6973,3 +6973,4 @@
 20047#Pisces_Crown_Certificate#
 20048#Observer_Certificate#
 20049#Gray_Drooping_Cat_Certificate#
+20050#Bell_Ribbon_Certificate#
