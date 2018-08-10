@@ -6897,7 +6897,7 @@
 14947#Anniversary_2018_Costume_Box#
 14948#Overseas_Care_Package_XVIII#
 14971#Overseas_Care_Package_XX#
-14977#2018_August_Special_Box#
+14977#Overseas_Care_Package_XXI#
 14979#MVP_August_Costume_Box#
 15000#Bone_Plate#
 15002#Rune_Plate#

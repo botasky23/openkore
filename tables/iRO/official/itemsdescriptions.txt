@@ -59309,12 +59309,22 @@ Mask of Hero
 (8) HE Bubble Gum
 #
 14977#
-You will receive one of the items within the special box.
-Weight : ^7777771^000000
+When opened receive one of the following,
 
-Attack: ^8080800^000000
+Imperial Feather
+Gambler's Seal
+Royal Guard Necklace
+Prontera Militia Glove [1]
+Prism Rangers Scarf
+Old Morroc Shawl [1]
+Pure White Marching Hat [1]
+Mechanic Shoes [1]
+(8) Blacksmith Blessing
+(5) Bloody Dead Branch
+(10) Oda's Miracle Elixir
+
+Class: ^808080Item Giver^000000
 Weight: ^8080800^000000
-Weapon Level: ^8080800^000000
 #
 14979#
 Class: ^808080Item Giver^000000
@@ -76499,10 +76509,11 @@ Job : ^777777all jobs^000000
 #
 19825#
 A bandage covers scars of eyes.
-Class : ^777777Costume^000000 Defense : ^7777770^000000
-Location : ^777777Upper ^000000Weight : ^7777770^000000
-Required LV : ^7777771^000000
-Job : ^777777all jobs^000000
+Class: ^808080Costume^000000
+Position: ^808080Middle^000000
+Weight: ^8080800^000000
+Requires Level: ^8080801^000000
+Usable By: ^808080All Jobs^000000
 #
 19826#
 ^808080Earrings made with ice and extra chemicals. Why is it so chilly when you wear it?^000000
@@ -78723,12 +78734,12 @@ Required Level: 1
 Required Job: All Jobs
 #
 20286#
-^808080Glasses rimmed under the lens only. They fit any types of coordination nicely either cool or cute.^000000
-Class: Costume
-Position: Lower
-Weight: 0
-Required Level: 1
-Required Jobs: All Jobs
+Glasses rimmed under the lens only. They fit any types of coordination nicely either cool or cute.
+Class: ^808080Costume^000000
+Position: ^808080Middle^000000
+Weight: ^8080800^000000
+Requires Level: ^8080801^000000
+Usable By: ^808080All Jobs^000000
 #
 20287#
 ^808080A hat resembles the man's hairdo who always looks for someone to fight with.^000000
